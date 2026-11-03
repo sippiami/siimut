@@ -990,6 +990,7 @@ body.sidebar-collapsed .main-wrap{ margin-left:0; width:100%; }
           <div class="ppi-bar">
             <div><label for="ppiBulan">Bulan</label><input type="month" id="ppiBulan" class="form-control form-control-sm"></div>
             <div><button class="btn btn-sm btn-primary" id="ppiMuat"><i class="fa-solid fa-rotate me-1"></i>Tampilkan</button></div>
+            <div id="ppiSinkronWrap" style="display:none;"><button class="btn btn-sm btn-success" id="ppiSinkron" title="Isi angka INM Kepatuhan Kebersihan Tangan & Kepatuhan Penggunaan APD bulan ini dari SIPPI"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Kirim ke INM</button></div>
             <div class="ms-auto"><a class="btn btn-sm btn-outline-secondary" id="ppiBukaSippi" href="https://sippiami.github.io" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Buka SIPPI</a></div>
           </div>
           <div class="ppi-sumber" id="ppiSumber">Data hanya untuk dilihat. Input dan laporan lengkap ada di aplikasi SIPPI AMI.</div>
@@ -3726,6 +3727,9 @@ function bukaKomitePPI_() {
   var inp = document.getElementById('ppiBulan');
   if (!inp.value) inp.value = ppiBulanIni_();
   document.getElementById('ppiMuat').onclick = function () { muatRekapPPI_(); };
+  var role = String((APP_STATE.user && APP_STATE.user.role) || '');
+  document.getElementById('ppiSinkronWrap').style.display = ['PPI', 'Administrator', 'PMKP'].indexOf(role) !== -1 ? '' : 'none';
+  document.getElementById('ppiSinkron').onclick = function () { sinkronINMPPI_(); };
   inp.onchange = function () { muatRekapPPI_(); };
   muatRekapPPI_();
 }
@@ -3752,6 +3756,20 @@ function muatRekapPPI_() {
       document.getElementById('ppiKartu').innerHTML = '<div class="alert alert-danger mt-3">Gagal memuat: ' + ppiEsc_(err && err.message || err) + '</div>';
     })
     .getRekapPPI(APP_STATE.token, per);
+}
+
+/* Isi INM ber-PIC PPI (HH & APD) dari SIPPI untuk bulan yang dipilih */
+function sinkronINMPPI_() {
+  var per = document.getElementById('ppiBulan').value || ppiBulanIni_();
+  showLoader('Mengirim angka SIPPI ke INM...');
+  google.script.run
+    .withSuccessHandler(function (res) {
+      hideLoader();
+      Swal.fire({ icon: res && res.success ? 'success' : 'error', title: res && res.success ? 'Sinkron INM ' + ppiNamaBulan_(per) : 'Sinkron gagal',
+        html: '<div style="text-align:left;font-size:.9rem">' + ppiEsc_((res && res.message) || 'Terjadi kesalahan.').replace(/\n/g, '<br>') + '</div>', confirmButtonColor: '#0E6EB8' });
+    })
+    .withFailureHandler(function (err) { hideLoader(); Swal.fire({ icon: 'error', title: 'Sinkron gagal', text: err.message, confirmButtonColor: '#0E6EB8' }); })
+    .sinkronINMdariSIPPI(APP_STATE.token, per);
 }
 
 /* Ringkasan tiap survei: % kepatuhan RS (observasi) atau jumlah kejadian (surveilans) */
